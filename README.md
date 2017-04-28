@@ -3,7 +3,8 @@ Code playground with stuff that wants to be a real boy (read: boost contribution
 
 ## getting started (Visual Studio 2017 example)
 ```
-cmake -G "Visual Studio 15 2017 Win64"
+mkdir x64 && cd x64
+cmake -G "Visual Studio 15 2017 Win64" ..
 "C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\Common7\Tools\VsDevCmd.bat"
 msbuild /p:Configuration=Release playground.sln
 ```
