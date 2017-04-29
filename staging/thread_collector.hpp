@@ -64,7 +64,8 @@ public:
     {
         ulock lock(m_mutex, std::defer_lock);
 
-        auto work = std::make_unique<worker>(std::bind(std::forward<fn>(fx), std::forward<args>(ax)...));
+        auto closure = std::bind(std::forward<fn>(fx), std::forward<args>(ax)...);
+        auto work = std::make_unique<worker>(std::move(closure));
         if ((*work)())
         {
             //thread now spawned
@@ -83,9 +84,12 @@ public:
 private:
     std::pair<ulock, ulock> acquire_locks(thread_collector& other) const noexcept
     {
-        auto locks = std::make_pair(ulock(m_mutex, std::defer_lock), ulock(other.m_mutex, std::defer_lock));
+        auto locks = std::make_pair(
+            ulock(m_mutex, std::defer_lock),
+            ulock(other.m_mutex, std::defer_lock));
+
         std::lock(locks.first, locks.second);//lock both unique_locks without deadlock
-        return locks; //copy elision
+        return locks;//copy elision
     }
 
     void move(thread_collector& other) noexcept
@@ -112,9 +116,7 @@ private:
         using ptr = std::unique_ptr<worker>;
         using work = std::function<void()>;
 
-        explicit worker(work &&closure)
-            : m_closure(std::move(closure))
-            , m_finished(false) {}
+        explicit worker(work &&closure) : m_closure(std::move(closure)) {}
 
         ~worker()
         {
@@ -125,29 +127,27 @@ private:
     public:
         bool operator()()
         {
-            if (m_closure)
-            {
-                m_thread = std::thread([this]() {
-                    try
-                    {
-                        m_closure();
+            if (!m_closure)
+                return false;
 
-                        //must not leave function objects hanging
-                        m_closure = nullptr; //destruct and clear function object
+            m_thread = std::thread([this]() {
+                try
+                {
+                    m_closure();
 
-                        //signal lazy garbage collector
-                        m_finished = true;
-                    }
-                    catch (...)
-                    {
-                        //uncaught exceptions from closures are ill-formed
-                        std::terminate();
-                    }
-                });
+                    //must not leave function objects hanging
+                    m_closure = nullptr; //destruct and clear function object
 
-                return true;
-            }
-            return false;
+                    //signal lazy garbage collector
+                    m_finished = true;
+                }
+                catch (...)
+                {
+                    //uncaught exceptions from closures are ill-formed
+                    std::terminate();
+                }
+            });
+            return true;
         }
 
         bool finished() const noexcept
@@ -158,7 +158,7 @@ private:
     private:
         work m_closure;
         std::thread m_thread;
-        std::atomic_bool m_finished;
+        std::atomic_bool m_finished = false;
     };//class worker
 
 private:
@@ -166,4 +166,4 @@ private:
     std::vector<worker::ptr> m_spawns;
 };
 
-} // namespace staging
+}//namespace staging
