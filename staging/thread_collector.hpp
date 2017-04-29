@@ -4,30 +4,12 @@
 #include <vector>
 #include <memory>
 #include <functional>
-#include <exception>
 #include <string>
 #include <atomic>
 #include <algorithm>
 
 class thread_collector
 {
-public:
-    class exception : public std::exception
-    {
-    public:
-        exception() = default;
-        explicit exception(std::string &&message) throw()
-            : m_message(std::move(message)) {}
-
-        virtual char const* what() const throw()
-        {
-            return m_message.empty() ? "Unknown thread_collector exception" : m_message.c_str();
-        }
-
-    private:
-        const std::string m_message;
-    };//class exception
-
 public:
     thread_collector() noexcept
     {
@@ -117,7 +99,8 @@ private:
                     }
                     catch (...)
                     {
-                        throw exception("unhandled exception from worker thread");
+                        //uncaught exceptions from closures are ill-formed
+                        std::terminate();
                     }
                 });
 
