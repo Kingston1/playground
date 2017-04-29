@@ -55,14 +55,11 @@ public:
         std::unique_lock<std::mutex> lock(m_mutex, std::defer_lock);
 
         auto work = std::make_unique<worker>(std::bind(std::forward<_Fn>(_Fx), std::forward<_Args>(_Ax)...));
-        if (work->run())
+        if ((*work)())
         {
             //thread now spawned
-            if (!work->finished()) //optimization: remove if atomic_bool read is slower than emplace - or for large collections
-            {
-                lock.lock();
-                m_spawns.emplace_back(std::move(work));
-            }
+            lock.lock();
+            m_spawns.push_back(std::move(work));
         }
         lazy_collect_garbage(std::move(lock));
     }
@@ -103,7 +100,7 @@ private:
         }
 
     public:
-        bool run() noexcept
+        bool operator()() noexcept
         {
             if (m_closure)
             {
@@ -120,7 +117,7 @@ private:
                     }
                     catch (...)
                     {
-                        throw exception("unknown/unhandled exception from worker thread");
+                        throw exception("unhandled exception from worker thread");
                     }
                 });
 
