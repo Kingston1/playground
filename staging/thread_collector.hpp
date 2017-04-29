@@ -21,13 +21,29 @@ public:
         spawn(std::forward<_Fn>(_Fx), std::forward<_Args>(_Ax)...);
     }
 
+    ~thread_collector() noexcept
+    {
+        join();
+    }
+
+    thread_collector(thread_collector&& other) noexcept
+    {	// move from _Other
+        move_or_swap(other);
+    }
+
+    thread_collector& operator=(thread_collector&& other) noexcept
+    {	// move from _Other
+        move_or_swap(other);
+        return (*this);
+    }
+
     //non-copyable
     thread_collector(const thread_collector&) = delete;
     thread_collector& operator=(const thread_collector&) = delete;
 
-    ~thread_collector() noexcept
-    {
-        join();
+    void swap(thread_collector& other) noexcept
+    {	// swap with _Other
+        move_or_swap(other, true);
     }
 
 public:
@@ -53,6 +69,16 @@ public:
     }
 
 private:
+    void move_or_swap(thread_collector& other, bool swap = false) noexcept
+    {
+        std::unique_lock<std::mutex> lock(m_mutex, std::defer_lock);
+        std::unique_lock<std::mutex> lock_other(other.m_mutex, std::defer_lock);
+        std::lock(lock, lock_other);//lock both unique_locks without deadlock
+
+        if (swap) std::swap(m_spawns, other.m_spawns);
+        else m_spawns = std::move(other.m_spawns);
+    }
+
     void lazy_collect_garbage(std::unique_lock<std::mutex>&& lock) noexcept
     {
         if (!lock)

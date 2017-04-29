@@ -28,10 +28,14 @@ int main(int argc, char *argv[])
     collector.spawn(runner);
     collector.spawn(runner, 40);
 
+    collector_default = std::move(collector);
+    collector_default.swap(collector);
+
     /*auto thread_count = 10000;
     while (thread_count--)
         collector.spawn(runner);*/
 
+    collector_default.join();
     collector.join();
 
     //auto future = std::async(std::launch::async, runner);
