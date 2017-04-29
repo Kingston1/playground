@@ -1,3 +1,12 @@
+//
+// thread_collector
+// ~~~~~~~~~~~
+// Spawn scoped threads with controlled closure lifetimes and garbage collection.
+//
+// Copyright (c) 2017 Mikko Saarinki
+//
+// Distributed under the MIT License. (See accompanying file LICENSE)
+//
 #pragma once
 #include <thread>
 #include <mutex>
@@ -8,14 +17,14 @@
 #include <atomic>
 #include <algorithm>
 
+namespace staging {
+
 class thread_collector
 {
     using ulock = std::unique_lock<std::mutex>;
 
 public:
-    thread_collector() noexcept
-    {
-    }
+    thread_collector() noexcept = default;
 
     template<class fn, class... args>
     explicit thread_collector(fn&& fx, args&&... ax)
@@ -156,3 +165,5 @@ private:
     mutable std::mutex m_mutex;
     std::vector<worker::ptr> m_spawns;
 };
+
+} // namespace staging

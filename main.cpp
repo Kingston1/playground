@@ -1,13 +1,8 @@
 #include "staging/thread_collector.hpp"
 #include "playground.hpp"
 
-#include <future>
-
-//#include <boost/thread/future.hpp>
-//#include <boost/thread/executors/basic_thread_pool.hpp>
-
-template<typename T>
-using deleted_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
+//template<typename T>
+//using deleted_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
 
 int main(int argc, char *argv[])
 {
@@ -23,8 +18,8 @@ int main(int argc, char *argv[])
         //throw std::exception();
     };
 
-    thread_collector collector_default;
-    thread_collector collector(runner);
+    staging::thread_collector collector_default;
+    staging::thread_collector collector(runner);
     collector.spawn(runner);
     collector.spawn(runner, 40);
 
@@ -38,7 +33,6 @@ int main(int argc, char *argv[])
     collector_default.join();
     collector.join();
 
-    //auto future = std::async(std::launch::async, runner);
     //std::thread wtf(runner);
 
     std::cout << argv[0] << " finished" << std::endl;
