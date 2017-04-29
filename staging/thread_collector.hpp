@@ -10,30 +10,32 @@
 
 class thread_collector
 {
+    using ulock = std::unique_lock<std::mutex>;
+
 public:
     thread_collector() noexcept
     {
     }
 
-    template<class _Fn, class... _Args>
-    explicit thread_collector(_Fn&& _Fx, _Args&&... _Ax)
+    template<class fn, class... args>
+    explicit thread_collector(fn&& fx, args&&... ax)
     {
-        spawn(std::forward<_Fn>(_Fx), std::forward<_Args>(_Ax)...);
+        spawn(std::forward<fn>(fx), std::forward<args>(ax)...);
     }
 
-    ~thread_collector() noexcept
+    ~thread_collector()
     {
         join();
     }
 
     thread_collector(thread_collector&& other) noexcept
-    {	// move from _Other
-        move_or_swap(other);
+    {
+        move(other);
     }
 
     thread_collector& operator=(thread_collector&& other) noexcept
-    {	// move from _Other
-        move_or_swap(other);
+    {
+        move(other);
         return (*this);
     }
 
@@ -42,17 +44,18 @@ public:
     thread_collector& operator=(const thread_collector&) = delete;
 
     void swap(thread_collector& other) noexcept
-    {	// swap with _Other
-        move_or_swap(other, true);
+    {
+        const auto locks = acquire_locks(other);
+        std::swap(m_spawns, other.m_spawns);
     }
 
 public:
-    template<class _Fn, class... _Args>
-    void spawn(_Fn&& _Fx, _Args&&... _Ax)
+    template<class fn, class... args>
+    void spawn(fn&& fx, args&&... ax)
     {
-        std::unique_lock<std::mutex> lock(m_mutex, std::defer_lock);
+        ulock lock(m_mutex, std::defer_lock);
 
-        auto work = std::make_unique<worker>(std::bind(std::forward<_Fn>(_Fx), std::forward<_Args>(_Ax)...));
+        auto work = std::make_unique<worker>(std::bind(std::forward<fn>(fx), std::forward<args>(ax)...));
         if ((*work)())
         {
             //thread now spawned
@@ -62,24 +65,27 @@ public:
         lazy_collect_garbage(std::move(lock));
     }
 
-    void join() noexcept
+    void join()
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_spawns.clear();
     }
 
 private:
-    void move_or_swap(thread_collector& other, bool swap = false) noexcept
+    std::pair<ulock, ulock> acquire_locks(thread_collector& other) const noexcept
     {
-        std::unique_lock<std::mutex> lock(m_mutex, std::defer_lock);
-        std::unique_lock<std::mutex> lock_other(other.m_mutex, std::defer_lock);
-        std::lock(lock, lock_other);//lock both unique_locks without deadlock
-
-        if (swap) std::swap(m_spawns, other.m_spawns);
-        else m_spawns = std::move(other.m_spawns);
+        auto locks = std::make_pair(ulock(m_mutex, std::defer_lock), ulock(other.m_mutex, std::defer_lock));
+        std::lock(locks.first, locks.second);//lock both unique_locks without deadlock
+        return locks; //copy elision
     }
 
-    void lazy_collect_garbage(std::unique_lock<std::mutex>&& lock) noexcept
+    void move(thread_collector& other) noexcept
+    {
+        const auto locks = acquire_locks(other);
+        m_spawns = std::move(other.m_spawns);
+    }
+
+    void lazy_collect_garbage(ulock&& lock) noexcept
     {
         if (!lock)
             lock.lock();
@@ -101,14 +107,14 @@ private:
             : m_closure(std::move(closure))
             , m_finished(false) {}
 
-        ~worker() noexcept
+        ~worker()
         {
             if (m_thread.joinable())
                 m_thread.join();
         }
 
     public:
-        bool operator()() noexcept
+        bool operator()()
         {
             if (m_closure)
             {
