@@ -107,9 +107,9 @@ private:
         {
             if (m_closure)
             {
-                try
-                {
-                    m_thread = std::thread([this]() {
+                m_thread = std::thread([this]() {
+                    try
+                    {
                         m_closure();
 
                         //must not leave function objects hanging
@@ -117,12 +117,12 @@ private:
 
                         //signal lazy garbage collector
                         m_finished = true;
-                    });
-                }
-                catch (...)
-                {
-                    throw exception("unknown/unhandled exception from worker thread");
-                }
+                    }
+                    catch (...)
+                    {
+                        throw exception("unknown/unhandled exception from worker thread");
+                    }
+                });
 
                 return true;
             }

@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
     const auto runner = [bull = std::move(bullptr2)](const unsigned ms = 500) {
         bull->hello();
         std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+        throw std::exception();
     };
 
     thread_collector collector;
@@ -27,9 +28,9 @@ int main(int argc, char *argv[])
     collector.spawn(runner);
     collector.spawn(nullptr);
 
-    auto thread_count = 10000;
+    /*auto thread_count = 10000;
     while (thread_count--)
-        collector.spawn(runner);
+        collector.spawn(runner);*/
 
     collector.join();
 
