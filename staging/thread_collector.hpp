@@ -28,61 +28,60 @@ public:
         const std::string m_message;
     };//class exception
 
-    using work = std::function<void()>;
-
-    thread_collector() = default;
-
-    explicit thread_collector(work &&closure)
+public:
+    thread_collector() noexcept
     {
-        spawn(std::move(closure));
+    }
+
+    template<class _Fn, class... _Args>
+    explicit thread_collector(_Fn&& _Fx, _Args&&... _Ax)
+    {
+        spawn(std::forward<_Fn>(_Fx), std::forward<_Args>(_Ax)...);
     }
 
     //non-copyable
     thread_collector(const thread_collector&) = delete;
     thread_collector& operator=(const thread_collector&) = delete;
 
-    ~thread_collector()
+    ~thread_collector() noexcept
     {
         join();
     }
 
 public:
-    //todo: support for std::bind-like entry points
-    void spawn(work &&closure)
+    template<class _Fn, class... _Args>
+    void spawn(_Fn&& _Fx, _Args&&... _Ax)
     {
-        if (closure)
-        {
-            std::unique_lock<std::mutex> lock(m_mutex, std::defer_lock);
+        std::unique_lock<std::mutex> lock(m_mutex, std::defer_lock);
 
-            auto new_work = std::make_unique<worker>(std::move(closure));
-            if (new_work->run())
+        auto work = std::make_unique<worker>(std::bind(std::forward<_Fn>(_Fx), std::forward<_Args>(_Ax)...));
+        if (work->run())
+        {
+            //thread now spawned
+            if (!work->finished()) //optimization: remove if atomic_bool read is slower than emplace - or for large collections
             {
-                //thread now spawned
-                if (!new_work->finished()) //optimization: remove if atomic_bool read is slower than emplace - or for large collections
-                {
-                    lock.lock();
-                    m_spawns.emplace_back(std::move(new_work));
-                }
+                lock.lock();
+                m_spawns.emplace_back(std::move(work));
             }
-            lazy_collect_garbage(std::move(lock));
         }
+        lazy_collect_garbage(std::move(lock));
     }
 
-    void join()
+    void join() noexcept
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_spawns.clear();
     }
 
 private:
-    void lazy_collect_garbage(std::unique_lock<std::mutex>&& lock)
+    void lazy_collect_garbage(std::unique_lock<std::mutex>&& lock) noexcept
     {
         if (!lock)
             lock.lock();
 
         m_spawns.erase(std::remove_if(m_spawns.begin(),
                                       m_spawns.end(),
-                                      [](const auto &it) { return it->finished(); }),
+                                      [](const auto &work) { return work->finished(); }),
                        m_spawns.end());
     };
 
@@ -91,19 +90,20 @@ private:
     {
     public:
         using ptr = std::unique_ptr<worker>;
+        using work = std::function<void()>;
 
         explicit worker(work &&closure)
             : m_closure(std::move(closure))
             , m_finished(false) {}
 
-        ~worker()
+        ~worker() noexcept
         {
             if (m_thread.joinable())
                 m_thread.join();
         }
 
     public:
-        bool run()
+        bool run() noexcept
         {
             if (m_closure)
             {
@@ -129,7 +129,10 @@ private:
             return false;
         }
 
-        bool finished() const { return m_finished; }
+        bool finished() const noexcept
+        {
+            return m_finished;
+        }
 
     private:
         work m_closure;
