@@ -116,7 +116,7 @@ private:
         using ptr = std::unique_ptr<worker>;
         using work = std::function<void()>;
 
-        explicit worker(work &&closure) : m_closure(std::move(closure)) {}
+        explicit worker(work &&closure) noexcept : m_closure(std::move(closure)) {}
 
         ~worker()
         {
