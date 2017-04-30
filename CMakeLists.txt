@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 3.6)
 
 project (playground)
 
@@ -7,6 +7,7 @@ file(GLOB HEADERS "*.hpp")
 file(GLOB STAGING "staging/*.*")
 
 add_executable(playground ${SOURCES} ${HEADERS} ${STAGING})
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT playground)
 
 option(USE_CLANG "build application with clang" OFF) # OFF is the default
 if(USE_CLANG)
