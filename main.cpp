@@ -26,9 +26,9 @@ int main(int argc, char *argv[])
     collector_default = std::move(collector);
     collector_default.swap(collector);
 
-    /*auto thread_count = 10000;
+    auto thread_count = 40000;
     while (thread_count--)
-        collector.spawn(runner);*/
+        collector.spawn(runner);
 
     collector_default.join();
     collector.join();
