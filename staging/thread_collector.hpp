@@ -116,7 +116,9 @@ private:
         using ptr = std::unique_ptr<worker>;
         using work = std::function<void()>;
 
-        explicit worker(work &&closure) noexcept : m_closure(std::move(closure)) {}
+        explicit worker(work &&closure) noexcept
+            : m_closure(std::move(closure))
+            , m_finished(false) {}
 
         ~worker()
         {
@@ -158,7 +160,7 @@ private:
     private:
         work m_closure;
         std::thread m_thread;
-        std::atomic_bool m_finished = false;
+        std::atomic_bool m_finished;
     };//class worker
 
 private:
