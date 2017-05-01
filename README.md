@@ -9,9 +9,9 @@ cmake -G "Visual Studio 15 2017 Win64" .. #Visual Studio 14 2015 also works fine
 msbuild /p:Configuration=Release playground.sln
 ```
 
-## getting started with clang 3.8+ and linux
+## getting started with Linux (Clang 3.8+ GCC 6.3.0+)
 ```
 mkdir build && cd build
-cmake -G "Unix Makefiles" -DUSE_CLANG=ON ..
+cmake -G "Unix Makefiles" ..
 make
 ```
